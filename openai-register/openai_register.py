@@ -209,7 +209,7 @@ class LuckMailInbox:
             str(getattr(result, "verification_code", "") or ""),
             json.dumps(getattr(result, "mail", None) or {}, ensure_ascii=False),
         ])
-        return re.findall(r"(?<!\\d)(\\d{6})(?!\\d)", body)
+        return re.findall(r"(?<!\d)(\d{6})(?!\d)", body)
 
     def _list_token_mails(self):
         if not self.token:
@@ -253,7 +253,7 @@ class LuckMailInbox:
                             str(getattr(detail, "body_html", "") or ""),
                             str(getattr(detail, "verification_code", "") or ""),
                         ])
-                        results.extend(re.findall(r"(?<!\\d)(\\d{6})(?!\\d)", body2))
+                        results.extend(re.findall(r"(?<!\d)(\d{6})(?!\d)", body2))
                     except Exception:
                         pass
         except Exception:
@@ -272,7 +272,7 @@ class LuckMailInbox:
                 token_result = self._poll_once()
                 has_new_mail = bool(getattr(token_result, "has_new_mail", False))
                 codes = self._extract_codes_from_token_result(token_result)
-                print(f"[otp][luckmail] 轮询 #{attempt}, has_new_mail={has_new_mail}, 目标: {self.address}")
+                print(f"[otp][luckmail] 轮询 #{attempt}, has_new_mail={has_new_mail}, token_code={getattr(token_result, 'verification_code', None)}, 目标: {self.address}")
                 for code in codes:
                     if code and code not in exclude:
                         return code
@@ -295,18 +295,23 @@ class LuckMailInbox:
                     if message_id:
                         try:
                             detail = self._get_token_mail_detail(message_id)
+                            detail_code = str(getattr(detail, "verification_code", "") or "").strip()
+                            print(f"[otp][luckmail] 检查邮件详情: message_id={message_id}, detail_code={detail_code!r}, subject={getattr(detail, 'subject', '')!r}")
                             body2 = " ".join([
                                 str(getattr(detail, "subject", "") or ""),
                                 str(getattr(detail, "body_text", "") or ""),
                                 str(getattr(detail, "body_html", "") or ""),
-                                str(getattr(detail, "verification_code", "") or ""),
+                                detail_code,
                             ])
-                            for code in re.findall(r"(?<!\\d)(\\d{6})(?!\\d)", body2):
+                            if detail_code and detail_code not in exclude:
+                                self._seen_message_ids.add(message_id)
+                                return detail_code
+                            for code in re.findall(r"(?<!\d)(\d{6})(?!\d)", body2):
                                 if code and code not in exclude:
                                     self._seen_message_ids.add(message_id)
                                     return code
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"[otp][luckmail] 获取邮件详情异常: {e}")
             except Exception as e:
                 print(f"[otp][luckmail] 轮询异常: {e}")
             time.sleep(poll)
