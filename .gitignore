@@ -4,3 +4,13 @@ qwen-register
 **/__pycache__/
 **/.venv/
 **/venv/
+**/.env
+**/.env.*
+**/keys/
+**/tokens/
+**/logs/
+**/run.log
+**/failed.txt
+**/api_keys.txt
+**/exa_apikeys.txt
+**/config.yaml
